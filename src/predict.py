@@ -9,6 +9,9 @@ FECHA:
 """
 
 # Imports
+import pandas as pd
+import pickle
+import spark 
 
 class MakePredictionPipeline(object):
     
@@ -29,8 +32,10 @@ class MakePredictionPipeline(object):
         """
         COMPLETAR DOCSTRING
         """    
-        self.model = load_model(self.model_path) # Esta función es genérica, utilizar la función correcta de la biblioteca correspondiente
-        
+        # load classifier using pickle
+        self.model = pickle.load(open(self.model_path + "model_clf_pickle", 'rb'))
+        #result_score = my_model_clf.score(X_test,y_test)
+        #print("Score: ",result_score)
         return None
 
 
@@ -64,7 +69,7 @@ if __name__ == "__main__":
     
     spark = Spark()
     
-    pipeline = MakePredictionPipeline(input_path = 'Ruta/De/Donde/Voy/A/Leer/Mis/Datos',
-                                      output_path = 'Ruta/Donde/Voy/A/Escribir/Mis/Datos',
-                                      model_path = 'Ruta/De/Donde/Voy/A/Leer/Mi/Modelo')
+    pipeline = MakePredictionPipeline(input_path = '../data/train_dataset/',
+                                      output_path = './',
+                                      model_path = './')
     pipeline.run()  
