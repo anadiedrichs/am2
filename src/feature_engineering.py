@@ -10,13 +10,19 @@ FECHA:
 
 # Imports
 import pandas as pd
-import numpy as np
+import logging
+import logging.config
+
+
 
 class FeatureEngineeringPipeline(object):
 
     def __init__(self, input_path, output_path):
         self.input_path = input_path
         self.output_path = output_path
+        logging.config.fileConfig(fname='log.conf', disable_existing_loggers=False)
+        # Get the logger specified in the file
+        self.logger = logging.getLogger(__name__)
 
     def read_data(self) -> pd.DataFrame:
         """
@@ -29,14 +35,16 @@ class FeatureEngineeringPipeline(object):
         data_test['Set'] = 'test'
         
         pandas_df = pd.concat([data_train, data_test], ignore_index=True, sort=False)
+        self.logger.debug("pandas_df DataFrame loaded, shape_ "+str(pandas_df.shape))
         
         return pandas_df
 
     
     def data_transformation(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        COMPLETAR DOCSTRING
-        
+        This function deals with all the feature engineering process.
+        :return pandas_df: a DataFrame ready for training process.
+        :rtype: pd.DataFrame
         """
         
         # FEATURE ENGINEERING: para los años de establecimiento
@@ -71,12 +79,13 @@ class FeatureEngineeringPipeline(object):
         # FEATURE ENGINEERING: codificación los niveles de precios de los productos
         df['Item_MRP'] = pd.qcut(df['Item_MRP'], 4, labels = [1, 2, 3, 4])
 
-        # FEATURE ENGINEERING: codificación de variables ordinales
         # FEATURE ENGINEERING: codificación de variables nominales
         
         dataframe = df.drop(columns=['Item_Type', 'Item_Fat_Content']).copy()
         dataframe['Outlet_Size'] = dataframe['Outlet_Size'].replace({'High': 2, 'Medium': 1, 'Small': 0})
         dataframe['Outlet_Location_Type'] = dataframe['Outlet_Location_Type'].replace({'Tier 1': 2, 'Tier 2': 1, 'Tier 3': 0}) 
+        dataframe = pd.get_dummies(dataframe, columns=['Outlet_Type'])
+
 
         # Eliminación de variables que no contribuyen a la predicción por ser muy específicas
         dataset = dataframe.drop(columns=['Item_Identifier', 'Outlet_Identifier'])
@@ -85,18 +94,24 @@ class FeatureEngineeringPipeline(object):
 
     def write_prepared_data(self, transformed_dataframe: pd.DataFrame) -> None:
         """
-        COMPLETAR DOCSTRING
+        Writes the argument transformed_dataframe to the disk as a .csv file.
+        It creates two files: train_final.csv and test_final.csv on the self.output_path
         
         """
-        # División del dataset de train y test
+        # Split the dataset as train and test sets
         df_train = transformed_dataframe.loc[transformed_dataframe['Set'] == 'train']
         df_test = transformed_dataframe.loc[transformed_dataframe['Set'] == 'test']
+        # SettingWithCopyWarning in Pandas
+        pd.options.mode.chained_assignment = None
 
-        # Eliminando columnas sin datos
+        # deleting columns without data
         df_train.drop(['Set'], axis=1, inplace=True)
         df_test.drop(['Item_Outlet_Sales','Set'], axis=1, inplace=True)
 
-        # Guardando los datasets
+        df_train.drop(df_train.columns[[0]],axis=1,inplace=True)
+        df_test.drop(df_test.columns[[0]],axis=1,inplace=True)
+        
+        # saving datasets
         df_train.to_csv(self.output_path + "train_final.csv")
         df_test.to_csv(self.output_path + "test_final.csv")
         

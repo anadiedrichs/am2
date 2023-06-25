@@ -10,10 +10,14 @@ FECHA:
 
 # Imports
 import pandas as pd
+import sklearn
 from sklearn.model_selection import train_test_split, cross_validate, cross_val_score
 from sklearn import metrics
 from sklearn.linear_model import LinearRegression
 import pickle
+import logging.config
+import logging
+
 
 
 class ModelTrainingPipeline(object):
@@ -21,6 +25,10 @@ class ModelTrainingPipeline(object):
     def __init__(self, input_path, model_path):
         self.input_path = input_path
         self.model_path = model_path
+        logging.config.fileConfig(fname='log.conf', disable_existing_loggers=False)
+        # Get the logger specified in the file
+        self.logger = logging.getLogger(__name__)
+
 
     def read_data(self) -> pd.DataFrame:
         """
@@ -35,9 +43,9 @@ class ModelTrainingPipeline(object):
         return data_train
 
     
-    def model_training(self, df: pd.DataFrame) -> pd.DataFrame:
+    def model_training(self, df: pd.DataFrame) -> sklearn.sklearn.linear_model.LinearRegression:
         """
-        COMPLETAR DOCSTRING
+        Given a df, train a sklearn.sklearn.linear_model.LinearRegression model
         
         """
         
@@ -45,7 +53,7 @@ class ModelTrainingPipeline(object):
         model = LinearRegression()
 
         # División de dataset de entrenaimento y validación
-        X = df.drop(columns='Item_Outlet_Sales') #[['Item_Weight', 'Item_MRP', 'Outlet_Establishment_Year', 'Outlet_Size', 'Outlet_Location_Type']] # .drop(columns='Item_Outlet_Sales')
+        X = df.drop(columns='Item_Outlet_Sales') 
         x_train, x_val, y_train, y_val = train_test_split(X, df['Item_Outlet_Sales'], test_size = 0.3, random_state=seed)
 
         # Entrenamiento del modelo
@@ -57,29 +65,24 @@ class ModelTrainingPipeline(object):
         # Cálculo de los errores cuadráticos medios y Coeficiente de Determinación (R^2)
         mse_train = metrics.mean_squared_error(y_train, model.predict(x_train))
         R2_train = model.score(x_train, y_train)
-        print('Métricas del Modelo:')
-        print('ENTRENAMIENTO: RMSE: {:.2f} - R2: {:.4f}'.format(mse_train**0.5, R2_train))
+        self.logger.debug('Métricas del Modelo:')
+        self.logger.debug('ENTRENAMIENTO: RMSE: {:.2f} - R2: {:.4f}'.format(mse_train**0.5, R2_train))
 
         mse_val = metrics.mean_squared_error(y_val, pred)
         R2_val = model.score(x_val, y_val)
-        print('VALIDACIÓN: RMSE: {:.2f} - R2: {:.4f}'.format(mse_val**0.5, R2_val))
+        self.logger.debug('VALIDACIÓN: RMSE: {:.2f} - R2: {:.4f}'.format(mse_val**0.5, R2_val))
 
-        print('\nCoeficientes del Modelo:')
+        self.logger.debug('\nCoeficientes del Modelo:\n')
+        self.logger.debug(str(model.coef_))
         # Constante del modelo
-        print('Intersección: {:.2f}'.format(model.intercept_))
-
-        # Coeficientes del modelo
-        coef = pd.DataFrame(x_train.columns, columns=['features'])
-        coef['Coeficiente Estimados'] = model.coef_
-        print(coef, '\n')
-        coef.sort_values(by='Coeficiente Estimados').set_index('features').plot(kind='bar', title='Importancia de las variables', figsize=(12, 6))
-
+        self.logger.debug('\nIntersección: \n{:.2f}'.format(model.intercept_))
+     
         
         return model
 
     def model_dump(self, model_trained) -> None:
         """
-        COMPLETAR DOCSTRING
+        Saves the model to model_path with the name model_clf_pickle
         
         """
 
@@ -89,10 +92,10 @@ class ModelTrainingPipeline(object):
 
         # Predicción del modelo ajustado, eso moverlo a otra funcion
         
-        data_test = pd.read_csv(self.input_path + 'Test_BigMart.csv')
+        data_test = pd.read_csv(self.input_path + 'test_final.csv')
         data_test = data_test.copy()
         data_test['pred_Sales'] = model_trained.predict(data_test)
-        data_test.to_csv('data_test')
+        data_test.to_csv('data_test.csv')
         data_test.head()
         
         return None
